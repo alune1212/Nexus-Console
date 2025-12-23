@@ -6,7 +6,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig([
-  globalIgnores(['dist', 'src/api/**']),  // 忽略生成的 API 代码
+  globalIgnores(['dist', 'src/api/**', 'coverage/**']),  // 忽略生成的 API 代码和测试覆盖率报告
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

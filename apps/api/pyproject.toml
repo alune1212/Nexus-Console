@@ -20,12 +20,6 @@ dependencies = [
     "fastapi-cache2>=0.2.2",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.9.0",
-    "mypy>=1.15.0",
-]
-
 [tool.ruff]
 line-length = 100
 target-version = "py313"
@@ -61,6 +55,8 @@ addopts = [
 
 [dependency-groups]
 dev = [
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
     "aiosqlite>=0.22.0",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
