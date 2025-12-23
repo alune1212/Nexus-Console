@@ -38,25 +38,43 @@ export default defineConfig({
     // 代码分割配置
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks: (id) => {
           // React 核心库
-          "react-vendor": ["react", "react-dom"],
+          if (id.includes("react") || id.includes("react-dom")) {
+            return "react-vendor";
+          }
           // TanStack 库
-          "tanstack-vendor": [
-            "@tanstack/react-query",
-            "@tanstack/react-router",
-          ],
+          if (
+            id.includes("@tanstack/react-query") ||
+            id.includes("@tanstack/react-router")
+          ) {
+            return "tanstack-vendor";
+          }
           // UI 组件库
-          "ui-vendor": ["@radix-ui/react-slot", "lucide-react", "sonner"],
+          if (
+            id.includes("@radix-ui/react-slot") ||
+            id.includes("lucide-react") ||
+            id.includes("sonner")
+          ) {
+            return "ui-vendor";
+          }
           // 表单和验证
-          "form-vendor": ["react-hook-form", "@hookform/resolvers", "zod"],
+          if (
+            id.includes("react-hook-form") ||
+            id.includes("@hookform/resolvers") ||
+            id.includes("zod")
+          ) {
+            return "form-vendor";
+          }
           // 工具库
-          "utils-vendor": [
-            "clsx",
-            "tailwind-merge",
-            "class-variance-authority",
-            "date-fns",
-          ],
+          if (
+            id.includes("clsx") ||
+            id.includes("tailwind-merge") ||
+            id.includes("class-variance-authority") ||
+            id.includes("date-fns")
+          ) {
+            return "utils-vendor";
+          }
         },
       },
     },
