@@ -1,6 +1,6 @@
 {
   "name": "nexus-console",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "现代化全栈应用控制台 - Python/FastAPI + React/TypeScript + PostgreSQL + Redis",
   "main": "index.js",
   "scripts": {
