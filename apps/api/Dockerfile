@@ -1,5 +1,5 @@
 # Multi-stage build for Python FastAPI backend
-FROM python:3.13-slim as builder
+FROM python:3.14-slim as builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --no-dev
 
 # Production stage
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
