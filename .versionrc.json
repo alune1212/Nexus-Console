@@ -1,0 +1,20 @@
+{
+  "types": [
+    { "type": "feat", "section": "✨ Features" },
+    { "type": "fix", "section": "🐛 Bug Fixes" },
+    { "type": "perf", "section": "⚡ Performance" },
+    { "type": "refactor", "section": "♻️ Refactoring" },
+    { "type": "docs", "section": "📚 Documentation" },
+    { "type": "style", "section": "💄 Styles" },
+    { "type": "test", "section": "✅ Tests" },
+    { "type": "chore", "section": "🔧 Chores" }
+  ],
+  "skip": {
+    "changelog": false
+  },
+  "releaseCommitMessageFormat": "chore(release): {{currentTag}}",
+  "scripts": {
+    "prerelease": "echo '🚀 Preparing release...'",
+    "postchangelog": "echo '📝 CHANGELOG updated'"
+  }
+}

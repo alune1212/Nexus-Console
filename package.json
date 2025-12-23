@@ -1,7 +1,7 @@
 {
   "name": "nexus-console",
   "version": "1.0.0",
-  "description": "",
+  "description": "现代化全栈应用控制台 - Python/FastAPI + React/TypeScript + PostgreSQL + Redis",
   "main": "index.js",
   "scripts": {
     "test": "turbo test",
@@ -9,10 +9,35 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "types:sync": "pnpm --filter api openapi:export && pnpm --filter web api:generate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "release": "standard-version",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major",
+    "release:patch": "standard-version --release-as patch",
+    "validate:env": "./scripts/validate-env.sh",
+    "check:deps": "./scripts/check-deps.sh"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "fastapi",
+    "react",
+    "typescript",
+    "monorepo",
+    "fullstack",
+    "turborepo",
+    "pnpm",
+    "postgresql",
+    "redis",
+    "tanstack"
+  ],
+  "author": "Alune <aluneaphelios@icloud.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Alunelight/Nexus-Console.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Alunelight/Nexus-Console/issues"
+  },
+  "homepage": "https://github.com/Alunelight/Nexus-Console#readme",
   "license": "ISC",
   "packageManager": "pnpm@10.26.1+sha512.664074abc367d2c9324fdc18037097ce0a8f126034160f709928e9e9f95d98714347044e5c3164d65bd5da6c59c6be362b107546292a8eecb7999196e5ce58fa",
   "devDependencies": {
@@ -20,6 +45,7 @@
     "@commitlint/config-conventional": "^20.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "standard-version": "^9.5.0",
     "turbo": "^2.7.1"
   },
   "pnpm": {

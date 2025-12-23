@@ -22,6 +22,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            apps/api/.venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('apps/api/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
       - name: Install uv
         run: pip install uv
 

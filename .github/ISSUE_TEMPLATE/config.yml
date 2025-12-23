@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 讨论和问题
+    url: https://github.com/Alunelight/Nexus-Console/discussions
+    about: 如果你有问题或想讨论项目，请使用 Discussions
+  - name: 📚 文档
+    url: https://github.com/Alunelight/Nexus-Console#readme
+    about: 查看项目文档和使用指南
