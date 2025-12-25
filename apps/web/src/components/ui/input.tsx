@@ -1,3 +1,26 @@
+/**
+ * @fileoverview Input component from shadcn/ui
+ * @source https://ui.shadcn.com/docs/components/input
+ * @style new-york
+ * @baseColor zinc
+ *
+ * @changelog
+ * - 2025-12-25: Initial installation from shadcn/ui
+ *   - No custom modifications
+ *   - Follows shadcn/ui new-york style
+ *
+ * @usage
+ * ```tsx
+ * import { Input } from "@/components/ui/input"
+ * <Input type="email" placeholder="Enter email" />
+ * ```
+ *
+ * @note
+ * - To customize: Use className prop or create wrapper component
+ * - To update: Run `npx shadcn@latest add input --overwrite`
+ * - Remember to merge any custom changes after update
+ */
+
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

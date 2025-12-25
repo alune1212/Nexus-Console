@@ -2,9 +2,17 @@ import path from 'path';
 
 export default {
   // 前端文件
-  'apps/web/**/*.{ts,tsx}': (filenames) => [
-    `pnpm --filter web exec eslint --fix ${filenames.join(' ')}`,
-  ],
+  'apps/web/**/*.{ts,tsx}': (filenames) => {
+    const repoRoot = process.cwd();
+    const webRoot = path.resolve(repoRoot, 'apps/web');
+    const fileList = filenames.map((f) => {
+      const absolutePath = f.startsWith('/') ? f : path.resolve(repoRoot, f);
+      const relative = path.relative(webRoot, absolutePath);
+      return relative;
+    });
+
+    return [`pnpm --filter web exec eslint --fix ${fileList.join(' ')}`];
+  },
 
   // 后端文件
   'apps/api/**/*.py': (filenames) => {

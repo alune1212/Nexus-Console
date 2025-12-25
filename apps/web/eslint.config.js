@@ -19,5 +19,41 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // shadcn/ui 组件使用规范
+      // 确保 UI 组件文件使用 cn() 函数（排除 utils.ts，它是 cn() 的实现）
+      'no-restricted-imports': [
+        'warn',
+        {
+          patterns: [
+            {
+              group: ['clsx', 'tailwind-merge'],
+              message: 'Use cn() from @/lib/utils instead of importing clsx or tailwind-merge directly',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // 排除 utils.ts（cn() 函数的实现文件）
+  {
+    files: ['src/lib/utils.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  // UI 组件特定规则
+  {
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      // 确保使用 cn() 函数
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: "CallExpression[callee.name='clsx'], CallExpression[callee.name='twMerge']",
+          message: 'Use cn() from @/lib/utils instead of clsx or twMerge directly',
+        },
+      ],
+    },
   },
 ])

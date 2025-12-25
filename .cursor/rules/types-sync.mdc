@@ -1,7 +1,6 @@
 ---
 description: 后端与前端之间的 OpenAPI → orval → TypeScript 类型同步规则
-globs: "apps/**"
-alwaysApply: false
+alwaysApply: true
 ---
 
 ## 类型同步与 API Client 生成规则（OpenAPI + orval）

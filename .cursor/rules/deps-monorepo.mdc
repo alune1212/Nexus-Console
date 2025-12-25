@@ -1,9 +1,7 @@
 ---
 description: Monorepo 依赖管理规则（pnpm workspace + uv）
-globs: "**/package.json"
-alwaysApply: false
+alwaysApply: true
 ---
-
 ## Monorepo 依赖管理规则（pnpm + uv）
 
 本文件将 `.kiro/steering/dependency-management.md` 中的依赖规范提炼为 Cursor 可执行的规则。

@@ -1,3 +1,26 @@
+/**
+ * @fileoverview Button component from shadcn/ui
+ * @source https://ui.shadcn.com/docs/components/button
+ * @style new-york
+ * @baseColor zinc
+ *
+ * @changelog
+ * - 2025-12-25: Initial installation from shadcn/ui
+ *   - No custom modifications
+ *   - Follows shadcn/ui new-york style
+ *
+ * @usage
+ * ```tsx
+ * import { Button } from "@/components/ui/button"
+ * <Button variant="default" size="default">Click me</Button>
+ * ```
+ *
+ * @note
+ * - To customize: Use className prop or create wrapper component
+ * - To update: Run `npx shadcn@latest add button --overwrite`
+ * - Remember to merge any custom changes after update
+ */
+
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";

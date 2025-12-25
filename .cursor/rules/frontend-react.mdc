@@ -41,7 +41,76 @@ alwaysApply: false
 
 ### 组件与 UI 约定
 
-- 优先复用 `src/components/ui/*` 中的基础组件（例如 `button`, `card`, `input`）。
+#### shadcn/ui 组件使用规范
+
+**组件分层架构**：
+- **基础层** (`src/components/ui/*`): shadcn/ui 官方组件，保持原样或最小修改
+- **扩展层** (`src/components/ui/extensions/*`): UI 组件的扩展版本（包装组件）
+- **业务层** (`src/components/*`): 基于 UI 组件的业务组件
+- **页面层** (`src/routes/*`): 使用业务组件构建页面
+
+**组件使用原则**：
+- ✅ **优先使用** `@/components/ui` 中的基础组件
+- ✅ **通过 `className` prop 扩展样式**，而非修改组件源码
+- ✅ **需要大量自定义时**，创建包装组件在 `components/ui/extensions/` 或 `components/` 目录
+- ✅ **所有组件必须使用 `cn()` 工具函数**合并类名
+- ✅ **禁止直接修改** `src/components/ui/*` 中的组件源码（除非记录变更日志）
+
+**组件自定义规范**：
+- ✅ **最小修改原则**: 优先通过 `className` prop 扩展样式
+- ✅ **扩展而非修改**: 创建包装组件而非修改原始组件
+- ✅ **变更文档**: 所有自定义修改必须在组件文件顶部记录（使用 JSDoc `@changelog`）
+- ✅ **API 兼容**: 组件 props 接口保持向后兼容
+- ✅ **样式兼容**: 使用 CSS 变量而非硬编码颜色值
+- ✅ **遵循设计模式**: 使用 forwardRef、displayName 等 shadcn/ui 标准模式
+
+**组件更新流程**：
+1. **备份当前组件文件**（如果已自定义）
+2. **使用 CLI 更新**: `npx shadcn@latest add [component] --overwrite`
+3. **手动合并自定义修改**到新版本
+4. **更新组件文件顶部的变更日志**（`@changelog` 部分）
+5. **测试所有使用该组件的页面**
+
+**组件变更日志模板**：
+```typescript
+/**
+ * @fileoverview [Component] component from shadcn/ui
+ * @source https://ui.shadcn.com/docs/components/[component]
+ * @style new-york
+ * @baseColor zinc
+ *
+ * @changelog
+ * - YYYY-MM-DD: [变更描述]
+ *   - [具体修改内容]
+ *   - [迁移说明]
+ *
+ * @usage
+ * ```tsx
+ * import { [Component] } from "@/components/ui/[component]"
+ * ```
+ *
+ * @note
+ * - To customize: Use className prop or create wrapper component
+ * - To update: Run `npx shadcn@latest add [component] --overwrite`
+ * - Remember to merge any custom changes after update
+ */
+```
+
+**配置管理**：
+- ✅ `components.json` 配置变更需团队评审
+- ✅ 确保 `style`、`baseColor`、`iconLibrary` 在所有环境中一致
+- ✅ Tailwind 配置变更需同步更新 CSS 变量
+- ✅ 使用 CSS 变量系统（`--color-*`）支持主题切换
+
+**新组件添加检查清单**：
+- [ ] 检查 shadcn/ui 是否有官方组件
+- [ ] 确认 `components.json` 配置正确
+- [ ] 使用 CLI 添加组件：`npx shadcn@latest add [component]`
+- [ ] 在组件文件顶部添加变更日志模板
+- [ ] 验证组件在项目中正常工作
+
+#### 通用组件约定
+
 - 新组件：
   - 放在 `components/` 下，按功能子目录划分（未来扩展时遵守此约定）。
   - 使用 Tailwind 工具类，不单独引入 styled-components/emotion 等库。
