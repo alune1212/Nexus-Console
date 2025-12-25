@@ -1,6 +1,8 @@
 """Pytest configuration and fixtures."""
 
+import asyncio
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 
 import pytest
 from fastapi_cache import FastAPICache
@@ -64,3 +66,48 @@ async def client() -> AsyncGenerator[AsyncClient]:
 
     # Clear overrides
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limit_storage() -> None:
+    """Ensure rate limiter storage is cleared before/after each test."""
+    storage = getattr(app.state.limiter, "_storage", None)
+    if storage is not None:
+        storage.reset()
+    yield
+    if storage is not None:
+        storage.reset()
+
+
+def _dispose_test_engine() -> None:
+    """Dispose the async test engine to stop the aiosqlite worker thread."""
+    asyncio.run(test_engine.dispose())
+
+
+def _shutdown_rate_limiter_timers() -> None:
+    """Cancel lingering slowapi timers to avoid non-daemon threads."""
+    limiter = getattr(app.state, "limiter", None)
+    if limiter is None:
+        return
+
+    storages = [getattr(limiter, "_storage", None)]
+    fallback = getattr(limiter, "_fallback_limiter", None)
+    if fallback is not None:
+        storages.append(getattr(fallback, "_storage", None))
+
+    for storage in storages:
+        if storage is None:
+            continue
+        timer = getattr(storage, "timer", None)
+        if timer is None:
+            continue
+        timer.cancel()
+        with suppress(RuntimeError):
+            timer.join(timeout=1)
+        storage.timer = None
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Ensure pytest shuts down cleanly."""
+    _dispose_test_engine()
+    _shutdown_rate_limiter_timers()
