@@ -1,4 +1,5 @@
 import { customFetch } from "@/api/client";
+import type { CurrentUserResponse } from "@/api/models";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -50,14 +51,7 @@ function LoginPage() {
       setIsLoading(true);
       setError("");
 
-      const response = await customFetch<{
-        id: number;
-        email: string;
-        name: string | null;
-        is_active: boolean;
-        created_at: string;
-        updated_at: string;
-      }>({
+      await customFetch({
         url: "http://localhost:8000/api/v1/auth/login",
         method: "POST",
         data: {
@@ -66,15 +60,12 @@ function LoginPage() {
         },
       });
 
-      // 更新认证状态
-      login({
-        id: response.id,
-        email: response.email,
-        name: response.name,
-        is_active: response.is_active,
-        created_at: response.created_at,
-        updated_at: response.updated_at,
+      // 登录成功后拉取包含 roles/permissions 的当前用户信息
+      const me = await customFetch<CurrentUserResponse>({
+        url: "http://localhost:8000/api/v1/auth/me",
+        method: "GET",
       });
+      login(me);
 
       // 导航到目标页面
       navigate({ to: redirect });

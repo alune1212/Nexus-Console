@@ -13,9 +13,11 @@ import { Route as UsersRouteImport } from './routes/users'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as ExamplesRouteImport } from './routes/examples'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRbacRouteImport } from './routes/admin/rbac'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -37,6 +39,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForbiddenRoute = ForbiddenRouteImport.update({
+  id: '/forbidden',
+  path: '/forbidden',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExamplesRoute = ExamplesRouteImport.update({
   id: '/examples',
   path: '/examples',
@@ -52,34 +59,45 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRbacRoute = AdminRbacRouteImport.update({
+  id: '/admin/rbac',
+  path: '/admin/rbac',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/examples': typeof ExamplesRoute
+  '/forbidden': typeof ForbiddenRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/users': typeof UsersRoute
+  '/admin/rbac': typeof AdminRbacRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/examples': typeof ExamplesRoute
+  '/forbidden': typeof ForbiddenRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/users': typeof UsersRoute
+  '/admin/rbac': typeof AdminRbacRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/examples': typeof ExamplesRoute
+  '/forbidden': typeof ForbiddenRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/users': typeof UsersRoute
+  '/admin/rbac': typeof AdminRbacRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,38 +105,46 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/examples'
+    | '/forbidden'
     | '/login'
     | '/profile'
     | '/register'
     | '/users'
+    | '/admin/rbac'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/examples'
+    | '/forbidden'
     | '/login'
     | '/profile'
     | '/register'
     | '/users'
+    | '/admin/rbac'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/examples'
+    | '/forbidden'
     | '/login'
     | '/profile'
     | '/register'
     | '/users'
+    | '/admin/rbac'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ExamplesRoute: typeof ExamplesRoute
+  ForbiddenRoute: typeof ForbiddenRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
   UsersRoute: typeof UsersRoute
+  AdminRbacRoute: typeof AdminRbacRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -151,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forbidden': {
+      id: '/forbidden'
+      path: '/forbidden'
+      fullPath: '/forbidden'
+      preLoaderRoute: typeof ForbiddenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/examples': {
       id: '/examples'
       path: '/examples'
@@ -172,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/rbac': {
+      id: '/admin/rbac'
+      path: '/admin/rbac'
+      fullPath: '/admin/rbac'
+      preLoaderRoute: typeof AdminRbacRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -179,10 +219,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ExamplesRoute: ExamplesRoute,
+  ForbiddenRoute: ForbiddenRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
   UsersRoute: UsersRoute,
+  AdminRbacRoute: AdminRbacRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

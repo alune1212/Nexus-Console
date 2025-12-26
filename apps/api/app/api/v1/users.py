@@ -3,11 +3,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from fastapi_cache.decorator import cache
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.api.deps import get_current_user, require_permissions
 from app.core.exceptions import EmailAlreadyExistsError, UserNotFoundError
 from app.database import get_db
 from app.models.user import User
@@ -52,6 +51,7 @@ async def update_current_user_profile(
 async def create_user(
     user: UserCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_permissions("users:write"))],
 ) -> UserResponse:
     """Create a new user."""
     # Check if user already exists
@@ -68,10 +68,10 @@ async def create_user(
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-@cache(expire=300)  # 缓存 5 分钟
 async def get_user(
     user_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_permissions("users:read"))],
 ) -> UserResponse:
     """Get a user by ID."""
     user = await db.get(User, user_id)
@@ -81,9 +81,9 @@ async def get_user(
 
 
 @router.get("/", response_model=list[UserResponse])
-@cache(expire=60)  # 缓存 1 分钟
 async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_permissions("users:read"))],
     skip: int = 0,
     limit: int = 100,
 ) -> list[UserResponse]:
@@ -98,6 +98,7 @@ async def update_user(
     user_id: int,
     user_update: UserUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_permissions("users:write"))],
 ) -> UserResponse:
     """Update a user."""
     user = await db.get(User, user_id)
@@ -118,6 +119,7 @@ async def update_user(
 async def delete_user(
     user_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
+    _: Annotated[User, Depends(require_permissions("users:write"))],
 ) -> None:
     """Delete a user."""
     user = await db.get(User, user_id)

@@ -1,4 +1,3 @@
-import { customFetch } from "@/api/client";
 import { useListUsersApiV1UsersGet } from "@/api/endpoints/users/users";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,25 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { requirePermission } from "@/utils/routeGuards";
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/users")({
   beforeLoad: async ({ location }) => {
-    try {
-      // 尝试获取当前用户（验证认证状态）
-      await customFetch({
-        url: "http://localhost:8000/api/v1/auth/me",
-        method: "GET",
-      });
-    } catch {
-      // 认证失败，重定向到登录页
-      throw redirect({
-        to: "/login",
-        search: {
-          redirect: location.href,
-        },
-      });
-    }
+    await requirePermission("users:read", location.href);
   },
   component: Users,
 });

@@ -1,4 +1,3 @@
-import { customFetch } from "@/api/client";
 import { useChangePasswordApiV1AuthChangePasswordPost } from "@/api/endpoints/auth/auth";
 import {
   useGetCurrentUserProfileApiV1UsersMeGet,
@@ -14,58 +13,33 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/authStore";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { requireAuth } from "@/utils/routeGuards";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 
-// 用户资料更新表单 Schema
-const profileUpdateSchema = z.object({
-  email: z.string().email("请输入有效的邮箱地址"),
-  name: z.string().min(1, "姓名不能为空").optional().or(z.literal("")),
-});
+type ProfileUpdateFormData = {
+  email: string;
+  name: string;
+};
 
-type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
+type ChangePasswordFormData = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
 
-// 密码修改表单 Schema
-const passwordSchema = z
-  .string()
-  .min(8, "密码至少需要 8 个字符")
-  .regex(/[A-Z]/, "密码必须包含至少一个大写字母")
-  .regex(/[a-z]/, "密码必须包含至少一个小写字母")
-  .regex(/[0-9]/, "密码必须包含至少一个数字");
-
-const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, "请输入当前密码"),
-    newPassword: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "两次输入的密码不一致",
-    path: ["confirmPassword"],
-  });
-
-type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+function validatePasswordStrength(value: string): true | string {
+  if (value.length < 8) return "密码至少需要 8 个字符";
+  if (!/[A-Z]/.test(value)) return "密码必须包含至少一个大写字母";
+  if (!/[a-z]/.test(value)) return "密码必须包含至少一个小写字母";
+  if (!/[0-9]/.test(value)) return "密码必须包含至少一个数字";
+  return true;
+}
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: async ({ location }) => {
-    try {
-      // 尝试获取当前用户（验证认证状态）
-      await customFetch({
-        url: "http://localhost:8000/api/v1/auth/me",
-        method: "GET",
-      });
-    } catch {
-      // 认证失败，重定向到登录页
-      throw redirect({
-        to: "/login",
-        search: {
-          redirect: location.href,
-        },
-      });
-    }
+    await requireAuth(location.href);
   },
   component: ProfilePage,
 });
@@ -75,7 +49,7 @@ function ProfilePage() {
     useGetCurrentUserProfileApiV1UsersMeGet();
   const updateProfile = useUpdateCurrentUserProfileApiV1UsersMePatch();
   const changePassword = useChangePasswordApiV1AuthChangePasswordPost();
-  const updateAuthStore = useAuthStore((state) => state.login);
+  const patchAuthStoreUser = useAuthStore((state) => state.patchUser);
 
   // 资料更新表单
   const {
@@ -84,7 +58,6 @@ function ProfilePage() {
     formState: { errors: profileErrors },
     reset: resetProfile,
   } = useForm<ProfileUpdateFormData>({
-    resolver: zodResolver(profileUpdateSchema),
     values: user
       ? {
           email: user.email,
@@ -99,9 +72,7 @@ function ProfilePage() {
     handleSubmit: handleSubmitPassword,
     formState: { errors: passwordErrors },
     reset: resetPassword,
-  } = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(changePasswordSchema),
-  });
+  } = useForm<ChangePasswordFormData>({});
 
   const [profileError, setProfileError] = useState<string>("");
   const [passwordError, setPasswordError] = useState<string>("");
@@ -121,13 +92,9 @@ function ProfilePage() {
       });
 
       // 更新认证状态
-      updateAuthStore({
-        id: updatedUser.id,
+      patchAuthStoreUser({
         email: updatedUser.email,
-        name: updatedUser.name,
-        is_active: updatedUser.is_active,
-        created_at: updatedUser.created_at,
-        updated_at: updatedUser.updated_at,
+        name: updatedUser.name ?? null,
       });
 
       setProfileSuccess("资料更新成功");
@@ -152,6 +119,10 @@ function ProfilePage() {
     try {
       setPasswordError("");
       setPasswordSuccess("");
+      if (data.newPassword !== data.confirmPassword) {
+        setPasswordError("两次输入的密码不一致");
+        return;
+      }
 
       await changePassword.mutateAsync({
         data: {
@@ -221,7 +192,13 @@ function ProfilePage() {
                 <Input
                   id="profile-email"
                   type="email"
-                  {...registerProfile("email")}
+                  {...registerProfile("email", {
+                    required: "请输入邮箱地址",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "请输入有效的邮箱地址",
+                    },
+                  })}
                   disabled={updateProfile.isPending}
                 />
                 {profileErrors.email && (
@@ -293,7 +270,9 @@ function ProfilePage() {
                   id="current-password"
                   type="password"
                   placeholder="••••••••"
-                  {...registerPassword("currentPassword")}
+                  {...registerPassword("currentPassword", {
+                    required: "请输入当前密码",
+                  })}
                   disabled={changePassword.isPending}
                 />
                 {passwordErrors.currentPassword && (
@@ -311,7 +290,10 @@ function ProfilePage() {
                   id="new-password"
                   type="password"
                   placeholder="••••••••"
-                  {...registerPassword("newPassword")}
+                  {...registerPassword("newPassword", {
+                    required: "请输入新密码",
+                    validate: validatePasswordStrength,
+                  })}
                   disabled={changePassword.isPending}
                 />
                 {passwordErrors.newPassword && (
@@ -335,7 +317,9 @@ function ProfilePage() {
                   id="confirm-password"
                   type="password"
                   placeholder="••••••••"
-                  {...registerPassword("confirmPassword")}
+                  {...registerPassword("confirmPassword", {
+                    required: "请确认新密码",
+                  })}
                   disabled={changePassword.isPending}
                 />
                 {passwordErrors.confirmPassword && (

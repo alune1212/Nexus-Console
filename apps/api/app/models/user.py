@@ -9,9 +9,11 @@ from sqlalchemy import DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.rbac import user_roles
 
 if TYPE_CHECKING:
     from app.models.auth_identity import AuthIdentity
+    from app.models.rbac import Role
 
 
 class User(Base):
@@ -44,4 +46,10 @@ class User(Base):
     # Relationships
     auth_identities: Mapped[list[AuthIdentity]] = relationship(
         "AuthIdentity", back_populates="user", cascade="all, delete-orphan"
+    )
+    roles: Mapped[list[Role]] = relationship(  # type: ignore[name-defined]
+        "Role",
+        secondary=user_roles,
+        back_populates="users",
+        lazy="selectin",
     )

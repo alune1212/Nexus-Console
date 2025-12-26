@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # 生产环境应设为 True（需要 HTTPS）
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"  # lax | strict | none
     cookie_domain: str | None = None  # 生产环境可指定域名
+    admin_emails: list[str] = Field(default_factory=list)  # ADMIN_EMAILS=a@x.com,b@x.com
 
     @field_validator("secret_key")
     @classmethod
@@ -69,6 +70,18 @@ class Settings(BaseSettings):
                     stacklevel=2,
                 )
         return v
+
+    @field_validator("admin_emails", mode="before")
+    @classmethod
+    def parse_admin_emails(cls, v: object) -> list[str]:
+        """Parse ADMIN_EMAILS from env to a normalized list."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [s.strip().lower() for s in v.split(",") if s.strip()]
+        if isinstance(v, list):
+            return [str(item).strip().lower() for item in v if str(item).strip()]
+        return []
 
 
 settings = Settings()

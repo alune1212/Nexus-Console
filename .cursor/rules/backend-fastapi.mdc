@@ -26,6 +26,10 @@ alwaysApply: false
 - 依赖注入写法遵循 FastAPI 官方推荐：
   - 使用 `typing.Annotated` + `Depends`：
     - `db: Annotated[AsyncSession, Depends(get_db)]`
+- 认证/授权依赖（RBAC）：
+  - 统一从 `app/api/deps.py` 引入：
+    - `get_current_user`：从 httpOnly cookie 解析 JWT，并 **DB 实时加载** `roles -> permissions`（使用 `selectinload`，避免 async lazy-load 导致 `MissingGreenlet`）
+    - `require_permissions(*codes)`：在路由上通过 `Depends(require_permissions(...))` 做权限检查
 - 错误处理：
   - 资源未找到时抛 `HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="...")`。
   - 违反唯一约束（如用户邮箱重复）时抛 `HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="...")`。
@@ -56,4 +60,17 @@ alwaysApply: false
   - 优先使用 `fastapi-cache2` 提供的装饰器：
     - 在只读接口（如 `GET /users/{id}`, `GET /users`）上使用 `@cache(expire=60)`/`@cache(expire=300)`。
   - 不在写操作（`POST`/`PATCH`/`DELETE`）上使用缓存。
+  - **RBAC 安全注意**：对带权限控制（`require_permissions`）的接口，禁止使用“全局缓存 key”（可能造成跨用户/跨权限数据泄露）。
+    - 如确需缓存，必须让缓存 key 包含用户维度（例如 user_id/权限版本），或改为不缓存。
+
+### RBAC（角色 + 权限）约定
+
+- 模型位置：
+  - `app/models/rbac.py`：`Role` / `Permission` 与关联表
+- 默认数据：
+  - 通过 Alembic migration seed 创建 `admin` / `user` 以及默认权限点（如 `users:read`、`rbac:write`）
+- 权限点命名：
+  - 使用 `resource:action` 形式，例如：`users:read`、`users:write`、`rbac:read`、`rbac:write`
+- `/auth/me` 返回值：
+  - 返回 `CurrentUserResponse`（包含 `roles` 与 `permissions`），前端据此决定路由/按钮展示与守卫逻辑
 

@@ -1,4 +1,5 @@
 import { customFetch } from "@/api/client";
+import type { CurrentUserResponse } from "@/api/models";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
@@ -12,14 +13,7 @@ function RootComponent() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await customFetch<{
-          id: number;
-          email: string;
-          name: string | null;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        }>({
+        const response = await customFetch<CurrentUserResponse>({
           url: "http://localhost:8000/api/v1/auth/me",
           method: "GET",
         });
@@ -58,6 +52,11 @@ function RootComponent() {
         <Link to="/about" className="[&.active]:font-bold">
           关于
         </Link>
+        {isAuthenticated && user?.permissions?.includes("rbac:read") ? (
+          <Link to="/admin/rbac" className="[&.active]:font-bold">
+            权限
+          </Link>
+        ) : null}
         <div className="ml-auto flex items-center gap-2">
           {isAuthenticated && user ? (
             <>

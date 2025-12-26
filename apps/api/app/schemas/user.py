@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
+from app.schemas.rbac import RoleResponse
+
 
 class UserBase(BaseModel):
     """Base user schema."""
@@ -35,5 +37,20 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CurrentUserResponse(BaseModel):
+    """Schema for current user with RBAC information."""
+
+    id: int
+    email: EmailStr
+    name: str | None = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    roles: list[RoleResponse]
+    permissions: list[str]
 
     model_config = ConfigDict(from_attributes=True)

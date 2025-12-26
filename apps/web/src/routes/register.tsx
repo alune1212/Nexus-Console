@@ -1,4 +1,5 @@
 import { customFetch } from "@/api/client";
+import type { CurrentUserResponse } from "@/api/models";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -69,14 +70,7 @@ function RegisterPage() {
       });
 
       // 注册成功后自动登录
-      const loginResponse = await customFetch<{
-        id: number;
-        email: string;
-        name: string | null;
-        is_active: boolean;
-        created_at: string;
-        updated_at: string;
-      }>({
+      await customFetch({
         url: "http://localhost:8000/api/v1/auth/login",
         method: "POST",
         data: {
@@ -85,15 +79,12 @@ function RegisterPage() {
         },
       });
 
-      // 更新认证状态
-      login({
-        id: loginResponse.id,
-        email: loginResponse.email,
-        name: loginResponse.name,
-        is_active: loginResponse.is_active,
-        created_at: loginResponse.created_at,
-        updated_at: loginResponse.updated_at,
+      // 登录成功后拉取包含 roles/permissions 的当前用户信息
+      const me = await customFetch<CurrentUserResponse>({
+        url: "http://localhost:8000/api/v1/auth/me",
+        method: "GET",
       });
+      login(me);
 
       // 导航到首页
       navigate({ to: "/" });

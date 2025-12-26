@@ -38,6 +38,20 @@ alwaysApply: false
   - 导出 `Route` 常量：
     - `export const Route = createFileRoute("...")({ component: ... })`
   - 路由内部组件只在该文件中定义或从 `components` 中复用。
+  - **不要额外导出页面组件**（例如 `export { LoginPage }`），避免与 TanStack Router 的 routeTree 生成/加载产生冲突。测试如需拿到组件，请从 `Route.options.component` 提取。
+
+### RBAC（角色 + 权限）前端约定
+
+- 权限能力：
+  - 使用 `src/hooks/usePermission.ts` 提供的 `hasPermission/hasRole` 做 UI 展示控制（例如导航栏显示“权限”入口）
+- 路由守卫：
+  - 在 `beforeLoad` 中使用 `src/utils/routeGuards.ts`：
+    - `requireAuth(location.href)`：仅要求登录
+    - `requirePermission('users:read', location.href)`：要求权限点
+  - 无权限统一跳转到 `/forbidden`
+- 用户信息来源：
+  - `/api/v1/auth/me` 返回 `CurrentUserResponse`（包含 roles/permissions）
+  - 登录/注册成功后应拉取一次 `/auth/me` 来填充 store（否则前端拿不到权限信息）
 
 ### 组件与 UI 约定
 

@@ -165,6 +165,8 @@ async def test_get_me_authenticated(client: AsyncClient) -> None:
     data = response.json()
     assert data["email"] == "me@example.com"
     assert data["name"] == "Me User"
+    assert any(role["name"] == "user" for role in data["roles"])
+    assert data["permissions"] == []
 
 
 @pytest.mark.asyncio

@@ -7,7 +7,9 @@ from fastapi import APIRouter, Cookie, Depends, Response, status
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.api.deps import get_current_user
 from app.config import settings
 from app.core.exceptions import (
     EmailAlreadyExistsError,
@@ -25,11 +27,82 @@ from app.core.security import (
 )
 from app.database import get_db
 from app.models.auth_identity import AuthIdentity
+from app.models.rbac import Permission, Role
 from app.models.user import User
 from app.schemas.auth import ChangePasswordRequest, LoginRequest, RegisterRequest
-from app.schemas.user import UserResponse
+from app.schemas.rbac import RoleResponse
+from app.schemas.user import CurrentUserResponse, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+DEFAULT_PERMISSIONS: list[tuple[str, str]] = [
+    ("users:read", "Read users"),
+    ("users:write", "Write users"),
+    ("rbac:read", "Read RBAC settings"),
+    ("rbac:write", "Write RBAC settings"),
+]
+
+
+def _collect_permission_codes(user: User) -> list[str]:
+    codes: set[str] = set()
+    for role in user.roles:
+        for perm in role.permissions:
+            codes.add(perm.code)
+    return sorted(codes)
+
+
+def _build_current_user_response(user: User) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        roles=[RoleResponse.model_validate(r) for r in user.roles],
+        permissions=_collect_permission_codes(user),
+    )
+
+
+async def _ensure_default_rbac(db: AsyncSession) -> tuple[Role, Role]:
+    """Ensure default roles and permissions exist (for dev/tests without migration seed)."""
+    role_admin = (
+        await db.execute(
+            select(Role).options(selectinload(Role.permissions)).where(Role.name == "admin")
+        )
+    ).scalar_one_or_none()
+    if role_admin is None:
+        role_admin = Role(name="admin", description="Administrator")
+        # Avoid async lazy-load in SQLAlchemy async by initializing the collection explicitly
+        role_admin.permissions = []
+        db.add(role_admin)
+
+    role_user = (await db.execute(select(Role).where(Role.name == "user"))).scalar_one_or_none()
+    if role_user is None:
+        role_user = Role(name="user", description="Default user")
+        db.add(role_user)
+
+    # ensure permissions exist
+    existing = (await db.execute(select(Permission))).scalars().all()
+    by_code = {p.code: p for p in existing}
+    perms: list[Permission] = []
+    for code, desc in DEFAULT_PERMISSIONS:
+        perm = by_code.get(code)
+        if perm is None:
+            perm = Permission(code=code, description=desc)
+            db.add(perm)
+        perms.append(perm)
+
+    await db.flush()
+
+    # ensure admin has all permissions (do not clobber existing custom perms)
+    existing_codes = {p.code for p in role_admin.permissions}
+    for perm in perms:
+        if perm.code not in existing_codes:
+            role_admin.permissions.append(perm)
+    await db.flush()
+
+    return role_admin, role_user
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -64,65 +137,6 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(key="refresh_token", path="/api/v1/auth")
 
 
-async def get_current_user(
-    access_token: Annotated[str | None, Cookie()] = None,
-    db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
-) -> User:
-    """
-    Dependency to get current authenticated user from access token cookie.
-
-    Args:
-        access_token: JWT access token from cookie
-        db: Database session
-
-    Returns:
-        Current authenticated user
-
-    Raises:
-        TokenError: If authentication fails
-    """
-    credentials_exception = TokenError("Could not validate credentials")
-
-    if not access_token:
-        raise credentials_exception
-
-    try:
-        payload = decode_token(access_token)
-        user_id_str: str | None = payload.get("sub")  # type: ignore[assignment]
-        token_type: str | None = payload.get("type")  # type: ignore[assignment]
-        token_version: int | None = payload.get("ver")  # type: ignore[assignment]
-
-        if user_id_str is None or token_type != "access" or token_version is None:
-            raise credentials_exception
-
-        user_id = int(user_id_str)
-    except (JWTError, ValueError):
-        raise credentials_exception from None
-
-    # 查询用户及其认证身份
-    result = await db.execute(
-        select(User, AuthIdentity)
-        .join(AuthIdentity, User.id == AuthIdentity.user_id)
-        .where(User.id == user_id)
-        .where(AuthIdentity.provider == "password")
-    )
-    row = result.first()
-
-    if row is None:
-        raise credentials_exception
-
-    user, auth_identity = row
-
-    # 验证 token_version（用于登出后吊销 token）
-    if auth_identity.token_version != token_version:
-        raise credentials_exception
-
-    if not user.is_active:
-        raise InactiveUserError()
-
-    return user
-
-
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
@@ -142,8 +156,13 @@ async def register(
     if result.scalar_one_or_none():
         raise EmailAlreadyExistsError(request.email)
 
+    role_admin, role_user = await _ensure_default_rbac(db)
+
     # 创建用户
     user = User(email=request.email, name=request.name, is_active=True)
+    user.roles = [role_user]
+    if request.email.lower() in set(settings.admin_emails):
+        user.roles.append(role_admin)
     db.add(user)
     await db.flush()  # 获取 user.id
 
@@ -212,20 +231,20 @@ async def login(
     return UserResponse.model_validate(user)
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=CurrentUserResponse)
 async def get_me(
     current_user: Annotated[User, Depends(get_current_user)],
-) -> UserResponse:
+) -> CurrentUserResponse:
     """Get current authenticated user."""
-    return UserResponse.model_validate(current_user)
+    return _build_current_user_response(current_user)
 
 
-@router.post("/refresh", response_model=UserResponse)
+@router.post("/refresh", response_model=CurrentUserResponse)
 async def refresh_token(
     response: Response,
     refresh_token: Annotated[str | None, Cookie()] = None,
     db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
-) -> UserResponse:
+) -> CurrentUserResponse:
     """
     Refresh access token using refresh token cookie.
 
@@ -253,6 +272,7 @@ async def refresh_token(
     result = await db.execute(
         select(User, AuthIdentity)
         .join(AuthIdentity, User.id == AuthIdentity.user_id)
+        .options(selectinload(User.roles).selectinload(Role.permissions))
         .where(User.id == user_id)
         .where(AuthIdentity.provider == "password")
     )
@@ -277,7 +297,7 @@ async def refresh_token(
     # 设置新 cookie
     set_auth_cookies(response, new_access_token, new_refresh_token)
 
-    return UserResponse.model_validate(user)
+    return _build_current_user_response(user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

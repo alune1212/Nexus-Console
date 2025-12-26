@@ -38,6 +38,11 @@ alwaysApply: false
   - 运行 `pnpm types:sync` 同步 OpenAPI → orval → 前端类型。
   - 前端通过新的 client 方法访问。
 
+### 认证状态与 RBAC（Zustand + /auth/me）
+
+- `authStore` 的 user 建议直接使用 orval 生成的 `CurrentUserResponse`（包含 `roles`/`permissions`），避免手写类型漂移。
+- 登录/注册成功后，应调用一次 `GET /api/v1/auth/me` 获取完整用户信息（含权限），再写入 `authStore`。
+
 ### Zustand 状态管理
 
 - 全局状态：
@@ -52,6 +57,7 @@ alwaysApply: false
 - 表单：
   - 使用 `react-hook-form` + `@hookform/resolvers/zod` + `zod` 定义 Schema。
   - `z.infer<typeof schema>` 衍生表单类型，避免重复定义 TypeScript 接口。
+  - 若遇到 `zodResolver` 与当前 zod 版本类型不兼容（TS 报 overload 不匹配），允许退回到 `react-hook-form` 的原生校验（`register(..., { validate })`）作为兼容方案。
 - 与 Query / Mutation 的配合：
   - 表单提交时调用 mutation 的 `mutate`/`mutateAsync`。
   - 成功后根据场景：

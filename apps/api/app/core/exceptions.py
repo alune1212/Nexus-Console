@@ -63,6 +63,59 @@ class PermissionDeniedError(BaseBusinessException):
         )
 
 
+class RoleNotFoundError(BaseBusinessException):
+    """Raised when a role is not found."""
+
+    def __init__(self, role_id: int | None = None) -> None:
+        detail = "Role not found"
+        if role_id is not None:
+            detail = f"Role with ID {role_id} not found"
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=detail,
+            error_code="ROLE_NOT_FOUND",
+        )
+
+
+class RoleAlreadyExistsError(BaseBusinessException):
+    """Raised when trying to create/update a role with an existing name."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role {name} already exists",
+            error_code="ROLE_ALREADY_EXISTS",
+        )
+
+
+class RoleNameNotFoundError(BaseBusinessException):
+    """Raised when one or more role names are not found."""
+
+    def __init__(self, names: list[str] | None = None) -> None:
+        detail = "Role not found"
+        if names:
+            detail = f"Roles not found: {', '.join(names)}"
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+            error_code="ROLE_NAME_NOT_FOUND",
+        )
+
+
+class PermissionNotFoundError(BaseBusinessException):
+    """Raised when one or more permissions are not found."""
+
+    def __init__(self, codes: list[str] | None = None) -> None:
+        detail = "Permission not found"
+        if codes:
+            detail = f"Permissions not found: {', '.join(codes)}"
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+            error_code="PERMISSION_NOT_FOUND",
+        )
+
+
 class InactiveUserError(BaseBusinessException):
     """Raised when trying to authenticate with an inactive user."""
 
