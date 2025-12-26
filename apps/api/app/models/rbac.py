@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKey, Index, Integer, String, Table, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -18,7 +18,6 @@ user_roles = Table(
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    UniqueConstraint("user_id", "role_id", name="uq_user_roles_user_id_role_id"),
     Index("ix_user_roles_user_id", "user_id"),
     Index("ix_user_roles_role_id", "role_id"),
     comment="User to roles association table",
@@ -35,11 +34,6 @@ role_permissions = Table(
         ForeignKey("permissions.id", ondelete="CASCADE"),
         primary_key=True,
     ),
-    UniqueConstraint(
-        "role_id",
-        "permission_id",
-        name="uq_role_permissions_role_id_permission_id",
-    ),
     Index("ix_role_permissions_role_id", "role_id"),
     Index("ix_role_permissions_permission_id", "permission_id"),
     comment="Role to permissions association table",
@@ -55,6 +49,11 @@ class Role(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     description: Mapped[str | None] = mapped_column(Text(), default=None)
+    is_system: Mapped[bool] = mapped_column(Boolean(), default=False, index=True)
+    # Roles with same exclusive_group are mutually exclusive for a user.
+    exclusive_group: Mapped[str | None] = mapped_column(String(64), default=None, index=True)
+    # Higher wins within the same exclusive_group during normalization.
+    priority: Mapped[int] = mapped_column(Integer(), default=0, index=True)
 
     permissions: Mapped[list[Permission]] = relationship(
         "Permission",

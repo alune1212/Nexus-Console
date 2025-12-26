@@ -55,7 +55,13 @@ async def create_role(
     if existing:
         raise RoleAlreadyExistsError(payload.name)
 
-    role = Role(name=payload.name, description=payload.description)
+    role = Role(
+        name=payload.name,
+        description=payload.description,
+        exclusive_group=payload.exclusive_group,
+        priority=payload.priority,
+        is_system=False,
+    )
     db.add(role)
     await db.commit()
     await db.refresh(role)
@@ -85,6 +91,13 @@ async def update_role(
 
     if payload.description is not None:
         role.description = payload.description
+
+    if payload.exclusive_group is not None and not role.is_system:
+        # For non-system roles, allow setting/clearing exclusive_group.
+        role.exclusive_group = payload.exclusive_group
+
+    if payload.priority is not None and not role.is_system:
+        role.priority = payload.priority
 
     await db.commit()
     await db.refresh(role)
@@ -176,7 +189,20 @@ async def set_user_roles(
     if missing:
         raise RoleNameNotFoundError(missing)
 
-    user.roles = list(roles)
+    # Normalize mutually exclusive role groups: within the same exclusive_group,
+    # keep only the role with the highest priority.
+    normalized: dict[str | None, Role] = {}
+    for role in roles:
+        group = role.exclusive_group
+        if group is None:
+            # group-less roles are additive; keep all by storing with unique keys
+            normalized[f"__nogroup__:{role.name}"] = role
+            continue
+        existing = normalized.get(group)
+        if existing is None or role.priority > existing.priority:
+            normalized[group] = role
+
+    user.roles = list(normalized.values())
     await db.commit()
     await db.refresh(user)
     return UserResponse.model_validate(user)

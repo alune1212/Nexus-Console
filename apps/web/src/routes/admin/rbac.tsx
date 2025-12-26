@@ -6,6 +6,7 @@ import {
   useListRolesApiV1RolesGet,
   useSetRolePermissionsApiV1RolesRoleIdPermissionsPut,
   useSetUserRolesApiV1UsersUserIdRolesPut,
+  useUpdateRoleApiV1RolesRoleIdPatch,
 } from "@/api/endpoints/rbac/rbac";
 import { useListUsersApiV1UsersGet } from "@/api/endpoints/users/users";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ function AdminRbacPage() {
   const setRolePermissions =
     useSetRolePermissionsApiV1RolesRoleIdPermissionsPut();
   const setUserRoles = useSetUserRolesApiV1UsersUserIdRolesPut();
+  const updateRole = useUpdateRoleApiV1RolesRoleIdPatch();
 
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const selectedRole = useMemo(() => {
@@ -59,6 +61,8 @@ function AdminRbacPage() {
 
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleDesc, setNewRoleDesc] = useState("");
+  const [newRoleExclusiveGroup, setNewRoleExclusiveGroup] = useState("");
+  const [newRolePriority, setNewRolePriority] = useState("0");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -67,10 +71,16 @@ function AdminRbacPage() {
   const [permissionCodes, setPermissionCodes] = useState<string[]>([]);
   const [userRoleNames, setUserRoleNames] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
+  const [editExclusiveGroup, setEditExclusiveGroup] = useState("");
+  const [editPriority, setEditPriority] = useState("0");
 
   const onSelectRole = (roleId: number, codes: string[]) => {
     setSelectedRoleId(roleId);
     setPermissionCodes(codes);
+
+    const role = (rolesQuery.data ?? []).find((r) => r.id === roleId);
+    setEditExclusiveGroup(role?.exclusive_group ?? "");
+    setEditPriority(String(role?.priority ?? 0));
   };
 
   const onSelectUser = (userId: number, roleNames: string[]) => {
@@ -85,11 +95,27 @@ function AdminRbacPage() {
   };
 
   const toggleUserRole = (roleName: string) => {
-    setUserRoleNames((prev) =>
-      prev.includes(roleName)
-        ? prev.filter((n) => n !== roleName)
-        : [...prev, roleName]
-    );
+    const roleByName = new Map((rolesQuery.data ?? []).map((r) => [r.name, r]));
+    const target = roleByName.get(roleName);
+    const group = target?.exclusive_group ?? null;
+
+    setUserRoleNames((prev) => {
+      const already = prev.includes(roleName);
+
+      // Toggle off is always allowed
+      if (already) return prev.filter((n) => n !== roleName);
+
+      // For mutually exclusive groups, remove other roles in the same group.
+      if (group) {
+        const filtered = prev.filter((n) => {
+          const r = roleByName.get(n);
+          return (r?.exclusive_group ?? null) !== group;
+        });
+        return [...filtered, roleName];
+      }
+
+      return [...prev, roleName];
+    });
   };
 
   const onCreateRole = async () => {
@@ -101,14 +127,24 @@ function AdminRbacPage() {
         setError("请输入角色名称");
         return;
       }
+      const eg = newRoleExclusiveGroup.trim();
+      const priorityNum = Number(newRolePriority);
+      if (!Number.isFinite(priorityNum) || Number.isNaN(priorityNum)) {
+        setError("优先级必须是数字");
+        return;
+      }
       const role = await createRole.mutateAsync({
         data: {
           name,
           description: newRoleDesc.trim() || null,
+          exclusive_group: eg || null,
+          priority: priorityNum,
         },
       });
       setNewRoleName("");
       setNewRoleDesc("");
+      setNewRoleExclusiveGroup("");
+      setNewRolePriority("0");
       onSelectRole(role.id, []);
       rolesQuery.refetch();
       setSuccess("角色创建成功");
@@ -116,6 +152,37 @@ function AdminRbacPage() {
       const info = handleError(err, {
         showToast: false,
         defaultMessage: "创建角色失败",
+      });
+      setError(info.message);
+    }
+  };
+
+  const onSaveRoleMeta = async () => {
+    if (!selectedRole) return;
+    if (selectedRole.is_system) return;
+    try {
+      setError("");
+      setSuccess("");
+      const eg = editExclusiveGroup.trim();
+      const priorityNum = Number(editPriority);
+      if (!Number.isFinite(priorityNum) || Number.isNaN(priorityNum)) {
+        setError("优先级必须是数字");
+        return;
+      }
+
+      await updateRole.mutateAsync({
+        roleId: selectedRole.id,
+        data: {
+          exclusive_group: eg || null,
+          priority: priorityNum,
+        },
+      });
+      await rolesQuery.refetch();
+      setSuccess("角色属性已更新");
+    } catch (err: unknown) {
+      const info = handleError(err, {
+        showToast: false,
+        defaultMessage: "更新角色属性失败",
       });
       setError(info.message);
     }
@@ -208,6 +275,20 @@ function AdminRbacPage() {
                 onChange={(e) => setNewRoleDesc(e.target.value)}
                 disabled={!canWrite || createRole.isPending}
               />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="互斥组（可选，例如 account）"
+                  value={newRoleExclusiveGroup}
+                  onChange={(e) => setNewRoleExclusiveGroup(e.target.value)}
+                  disabled={!canWrite || createRole.isPending}
+                />
+                <Input
+                  placeholder="优先级（数字，越大越优先）"
+                  value={newRolePriority}
+                  onChange={(e) => setNewRolePriority(e.target.value)}
+                  disabled={!canWrite || createRole.isPending}
+                />
+              </div>
               {!canWrite ? (
                 <p className="text-xs text-muted-foreground">
                   你只有只读权限（rbac:read），无法创建/修改
@@ -264,6 +345,39 @@ function AdminRbacPage() {
                       {selectedRole.description}
                     </div>
                   ) : null}
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="互斥组（为空表示可叠加）"
+                      value={editExclusiveGroup}
+                      onChange={(e) => setEditExclusiveGroup(e.target.value)}
+                      disabled={
+                        !canWrite || selectedRole.is_system || updateRole.isPending
+                      }
+                    />
+                    <Input
+                      placeholder="优先级（数字）"
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value)}
+                      disabled={
+                        !canWrite || selectedRole.is_system || updateRole.isPending
+                      }
+                    />
+                  </div>
+                  {selectedRole.is_system ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      系统角色（{selectedRole.name}）的互斥组/优先级为只读。
+                    </p>
+                  ) : null}
+                  <Button
+                    className="mt-2 w-full"
+                    onClick={onSaveRoleMeta}
+                    disabled={
+                      !canWrite || selectedRole.is_system || updateRole.isPending
+                    }
+                    variant="outline"
+                  >
+                    {updateRole.isPending ? "保存中..." : "保存角色属性"}
+                  </Button>
                 </div>
 
                 <div className="space-y-2">
@@ -428,6 +542,12 @@ function AdminRbacPage() {
                                 <span className="text-muted-foreground">
                                   {" "}
                                   — {r.description}
+                                </span>
+                              ) : null}
+                              {r.exclusive_group ? (
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  （互斥组：{r.exclusive_group}）
                                 </span>
                               ) : null}
                             </span>

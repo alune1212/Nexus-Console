@@ -16,6 +16,9 @@ class RoleResponse(BaseModel):
     name: str
     description: str | None = None
     permissions: list[PermissionResponse] = []
+    is_system: bool = False
+    exclusive_group: str | None = None
+    priority: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -33,6 +36,8 @@ class RoleRefResponse(BaseModel):
 class RoleCreate(BaseModel):
     name: str
     description: str | None = None
+    exclusive_group: str | None = None
+    priority: int = 0
 
     model_config = ConfigDict(strict=True)
 
@@ -40,6 +45,8 @@ class RoleCreate(BaseModel):
 class RoleUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
+    exclusive_group: str | None = None
+    priority: int | None = None
 
     model_config = ConfigDict(strict=True)
 

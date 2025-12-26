@@ -73,6 +73,9 @@ async def _ensure_default_rbac(db: AsyncSession) -> tuple[Role, Role]:
     ).scalar_one_or_none()
     if role_admin is None:
         role_admin = Role(name="admin", description="Administrator")
+        role_admin.is_system = True
+        role_admin.exclusive_group = "account"
+        role_admin.priority = 100
         # Avoid async lazy-load in SQLAlchemy async by initializing the collection explicitly
         role_admin.permissions = []
         db.add(role_admin)
@@ -80,6 +83,9 @@ async def _ensure_default_rbac(db: AsyncSession) -> tuple[Role, Role]:
     role_user = (await db.execute(select(Role).where(Role.name == "user"))).scalar_one_or_none()
     if role_user is None:
         role_user = Role(name="user", description="Default user")
+        role_user.is_system = True
+        role_user.exclusive_group = "account"
+        role_user.priority = 10
         db.add(role_user)
 
     # ensure permissions exist
@@ -160,9 +166,12 @@ async def register(
 
     # 创建用户
     user = User(email=request.email, name=request.name, is_active=True)
-    user.roles = [role_user]
     if request.email.lower() in settings.admin_email_set():
-        user.roles.append(role_admin)
+        # Mutually exclusive "account" group:
+        # admin users should not also carry the default user role.
+        user.roles = [role_admin]
+    else:
+        user.roles = [role_user]
     db.add(user)
     await db.flush()  # 获取 user.id
 

@@ -8,6 +8,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
+    "lint-staged": "lint-staged --concurrent false",
     "types:sync": "pnpm --filter api openapi:export && pnpm --filter web api:generate",
     "prepare": "husky",
     "release": "standard-version",

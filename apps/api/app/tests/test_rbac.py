@@ -25,7 +25,7 @@ async def test_admin_allowlist_gets_admin_role(client: AsyncClient) -> None:
 
     role_names = {r["name"] for r in data["roles"]}
     assert "admin" in role_names
-    assert "user" in role_names
+    assert "user" not in role_names
     assert "rbac:read" in data["permissions"]
     assert "rbac:write" in data["permissions"]
     assert "users:read" in data["permissions"]
