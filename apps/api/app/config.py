@@ -44,7 +44,9 @@ class Settings(BaseSettings):
     cookie_secure: bool = False  # 生产环境应设为 True（需要 HTTPS）
     cookie_samesite: Literal["lax", "strict", "none"] = "lax"  # lax | strict | none
     cookie_domain: str | None = None  # 生产环境可指定域名
-    admin_emails: list[str] = Field(default_factory=list)  # ADMIN_EMAILS=a@x.com,b@x.com
+    # RBAC bootstrap: comma-separated allowlist, e.g. ADMIN_EMAILS=a@x.com,b@x.com
+    # Use raw string here to avoid pydantic-settings JSON decoding for list types.
+    admin_emails: str = ""
 
     @field_validator("secret_key")
     @classmethod
@@ -71,17 +73,10 @@ class Settings(BaseSettings):
                 )
         return v
 
-    @field_validator("admin_emails", mode="before")
-    @classmethod
-    def parse_admin_emails(cls, v: object) -> list[str]:
-        """Parse ADMIN_EMAILS from env to a normalized list."""
-        if v is None:
-            return []
-        if isinstance(v, str):
-            return [s.strip().lower() for s in v.split(",") if s.strip()]
-        if isinstance(v, list):
-            return [str(item).strip().lower() for item in v if str(item).strip()]
-        return []
+    def admin_email_set(self) -> set[str]:
+        """Return normalized admin email allowlist from ADMIN_EMAILS."""
+        raw = self.admin_emails or ""
+        return {s.strip().lower() for s in raw.split(",") if s.strip()}
 
 
 settings = Settings()

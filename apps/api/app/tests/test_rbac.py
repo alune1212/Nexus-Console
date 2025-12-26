@@ -8,7 +8,7 @@ from app.config import settings
 
 @pytest.mark.asyncio
 async def test_admin_allowlist_gets_admin_role(client: AsyncClient) -> None:
-    settings.admin_emails = ["allow@example.com"]
+    settings.admin_emails = "allow@example.com"
 
     await client.post(
         "/api/v1/auth/register",
@@ -34,7 +34,7 @@ async def test_admin_allowlist_gets_admin_role(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_non_admin_cannot_list_roles(client: AsyncClient) -> None:
-    settings.admin_emails = []
+    settings.admin_emails = ""
 
     await client.post(
         "/api/v1/auth/register",
@@ -51,7 +51,7 @@ async def test_non_admin_cannot_list_roles(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_admin_can_list_roles_and_permissions(client: AsyncClient) -> None:
-    settings.admin_emails = ["admin@example.com"]
+    settings.admin_emails = "admin@example.com"
 
     await client.post(
         "/api/v1/auth/register",
@@ -79,7 +79,7 @@ async def test_admin_can_list_roles_and_permissions(client: AsyncClient) -> None
 
 @pytest.mark.asyncio
 async def test_users_list_requires_permission(client: AsyncClient) -> None:
-    settings.admin_emails = []
+    settings.admin_emails = ""
 
     # normal user
     await client.post(
@@ -94,7 +94,7 @@ async def test_users_list_requires_permission(client: AsyncClient) -> None:
     assert resp_forbidden.status_code == 403
 
     # admin user
-    settings.admin_emails = ["admin2@example.com"]
+    settings.admin_emails = "admin2@example.com"
     await client.post(
         "/api/v1/auth/register",
         json={"email": "admin2@example.com", "password": "password123", "name": "Admin2"},

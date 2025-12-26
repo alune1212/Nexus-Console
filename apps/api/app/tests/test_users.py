@@ -9,7 +9,7 @@ from app.config import settings
 @pytest.fixture(autouse=True)
 async def login_as_admin(client: AsyncClient) -> None:
     """Authenticate as an admin user for all user endpoint tests."""
-    settings.admin_emails = ["admin@example.com"]
+    settings.admin_emails = "admin@example.com"
     await client.post(
         "/api/v1/auth/register",
         json={"email": "admin@example.com", "password": "password123", "name": "Admin"},

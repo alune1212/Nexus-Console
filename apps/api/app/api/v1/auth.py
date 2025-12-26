@@ -161,7 +161,7 @@ async def register(
     # 创建用户
     user = User(email=request.email, name=request.name, is_active=True)
     user.roles = [role_user]
-    if request.email.lower() in set(settings.admin_emails):
+    if request.email.lower() in settings.admin_email_set():
         user.roles.append(role_admin)
     db.add(user)
     await db.flush()  # 获取 user.id
