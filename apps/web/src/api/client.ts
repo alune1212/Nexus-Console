@@ -64,5 +64,20 @@ export const customFetch = async <T>(config: CustomFetchConfig): Promise<T> => {
     throw error;
   }
 
-  return response.json();
+  // Handle empty responses (e.g. 204 No Content) safely.
+  if (response.status === 204 || response.status === 205 || rest.method === "HEAD") {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Fallback for non-JSON responses (should be rare in this project)
+    return text as unknown as T;
+  }
 };

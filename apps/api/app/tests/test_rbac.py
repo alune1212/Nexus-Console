@@ -105,3 +105,76 @@ async def test_users_list_requires_permission(client: AsyncClient) -> None:
     )
     resp_ok = await client.get("/api/v1/users/", cookies=login_admin.cookies)
     assert resp_ok.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_role_delete_guards(client: AsyncClient) -> None:
+    """System roles cannot be deleted; roles in use must be unassigned before deletion."""
+    settings.admin_emails = "admin-del@example.com"
+
+    # admin login
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin-del@example.com", "password": "password123", "name": "AdminDel"},
+    )
+    login_admin = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin-del@example.com", "password": "password123"},
+    )
+
+    # create a normal user (no admin allowlist)
+    settings.admin_emails = ""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "u-del@example.com", "password": "password123", "name": "UDel"},
+    )
+
+    # fetch users and find the user id
+    users = await client.get("/api/v1/users/", cookies=login_admin.cookies)
+    assert users.status_code == 200
+    u = next((x for x in users.json() if x["email"] == "u-del@example.com"), None)
+    assert u is not None
+    user_id = u["id"]
+
+    # create role
+    role_resp = await client.post(
+        "/api/v1/roles",
+        json={"name": "temp-delete", "description": "temp"},
+        cookies=login_admin.cookies,
+    )
+    assert role_resp.status_code == 201
+    role_id = role_resp.json()["id"]
+
+    # assign role to user (role is now in use)
+    assign = await client.put(
+        f"/api/v1/users/{user_id}/roles",
+        json={"role_names": ["temp-delete"]},
+        cookies=login_admin.cookies,
+    )
+    assert assign.status_code == 200
+
+    # cannot delete role in use
+    del_in_use = await client.delete(f"/api/v1/roles/{role_id}", cookies=login_admin.cookies)
+    assert del_in_use.status_code == 400
+
+    # unassign then delete succeeds
+    unassign = await client.put(
+        f"/api/v1/users/{user_id}/roles",
+        json={"role_names": []},
+        cookies=login_admin.cookies,
+    )
+    assert unassign.status_code == 200
+
+    del_ok = await client.delete(f"/api/v1/roles/{role_id}", cookies=login_admin.cookies)
+    assert del_ok.status_code == 204
+
+    # system role cannot be deleted
+    roles = await client.get("/api/v1/roles", cookies=login_admin.cookies)
+    assert roles.status_code == 200
+    admin_role = next((r for r in roles.json() if r["name"] == "admin"), None)
+    assert admin_role is not None
+    del_system = await client.delete(
+        f"/api/v1/roles/{admin_role['id']}",
+        cookies=login_admin.cookies,
+    )
+    assert del_system.status_code == 400

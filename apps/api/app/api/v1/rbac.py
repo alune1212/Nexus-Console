@@ -11,12 +11,14 @@ from app.api.deps import require_permissions
 from app.core.exceptions import (
     PermissionNotFoundError,
     RoleAlreadyExistsError,
+    RoleInUseError,
     RoleNameNotFoundError,
     RoleNotFoundError,
+    SystemRoleImmutableError,
     UserNotFoundError,
 )
 from app.database import get_db
-from app.models.rbac import Permission, Role
+from app.models.rbac import Permission, Role, user_roles
 from app.models.user import User
 from app.schemas.rbac import (
     PermissionResponse,
@@ -113,6 +115,16 @@ async def delete_role(
     role = await db.get(Role, role_id)
     if not role:
         raise RoleNotFoundError(role_id)
+    if role.is_system:
+        raise SystemRoleImmutableError(role.name)
+
+    in_use = (
+        await db.execute(
+            select(user_roles.c.user_id).where(user_roles.c.role_id == role_id).limit(1)
+        )
+    ).scalar_one_or_none()
+    if in_use is not None:
+        raise RoleInUseError(role_id)
     await db.delete(role)
     await db.commit()
 

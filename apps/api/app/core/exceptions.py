@@ -88,6 +88,34 @@ class RoleAlreadyExistsError(BaseBusinessException):
         )
 
 
+class RoleInUseError(BaseBusinessException):
+    """Raised when trying to delete a role that is still assigned to users."""
+
+    def __init__(self, role_id: int | None = None) -> None:
+        detail = "Role is still assigned to one or more users"
+        if role_id is not None:
+            detail = f"Role with ID {role_id} is still assigned to one or more users"
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+            error_code="ROLE_IN_USE",
+        )
+
+
+class SystemRoleImmutableError(BaseBusinessException):
+    """Raised when trying to modify/delete a system role."""
+
+    def __init__(self, role_name: str | None = None) -> None:
+        detail = "System role cannot be modified"
+        if role_name:
+            detail = f"System role '{role_name}' cannot be modified"
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+            error_code="SYSTEM_ROLE_IMMUTABLE",
+        )
+
+
 class RoleNameNotFoundError(BaseBusinessException):
     """Raised when one or more role names are not found."""
 

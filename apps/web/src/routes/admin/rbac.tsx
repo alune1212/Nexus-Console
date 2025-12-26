@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 
 import {
+  getListRolesApiV1RolesGetQueryKey,
   useCreateRoleApiV1RolesPost,
+  useDeleteRoleApiV1RolesRoleIdDelete,
   useListPermissionsApiV1PermissionsGet,
   useListRolesApiV1RolesGet,
   useSetRolePermissionsApiV1RolesRoleIdPermissionsPut,
@@ -21,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { usePermission } from "@/hooks/usePermission";
 import { requirePermission } from "@/utils/routeGuards";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin/rbac")({
@@ -35,6 +38,7 @@ function AdminRbacPage() {
   const canWrite = hasPermission("rbac:write");
   const canReadUsers = hasPermission("users:read");
   const { handleError } = useErrorHandler();
+  const queryClient = useQueryClient();
 
   const rolesQuery = useListRolesApiV1RolesGet();
   const permissionsQuery = useListPermissionsApiV1PermissionsGet();
@@ -44,6 +48,7 @@ function AdminRbacPage() {
   );
 
   const createRole = useCreateRoleApiV1RolesPost();
+  const deleteRole = useDeleteRoleApiV1RolesRoleIdDelete();
   const setRolePermissions =
     useSetRolePermissionsApiV1RolesRoleIdPermissionsPut();
   const setUserRoles = useSetUserRolesApiV1UsersUserIdRolesPut();
@@ -152,6 +157,46 @@ function AdminRbacPage() {
       const info = handleError(err, {
         showToast: false,
         defaultMessage: "创建角色失败",
+      });
+      setError(info.message);
+    }
+  };
+
+  const onDeleteRole = async (roleId: number, roleName: string) => {
+    if (
+      !window.confirm(
+        `确定要删除角色「${roleName}」吗？\n\n注意：如果该角色仍被用户使用，系统会要求你先解绑后再删除。`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+      await deleteRole.mutateAsync({ roleId });
+
+      // 立即从缓存中移除被删除角色，避免 UI 需要手动刷新。
+      const rolesKey = getListRolesApiV1RolesGetQueryKey();
+      queryClient.setQueryData(rolesKey, (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((r) => (r as { id?: number }).id !== roleId);
+      });
+
+      if (selectedRoleId === roleId) {
+        setSelectedRoleId(null);
+        setPermissionCodes([]);
+      }
+
+      // 再触发一次失效刷新，确保服务端状态为准（不阻塞 UI；失败也不应影响“删除成功”提示）。
+      void queryClient
+        .invalidateQueries({ queryKey: rolesKey })
+        .catch(() => undefined);
+      setSuccess("角色已删除");
+    } catch (err: unknown) {
+      const info = handleError(err, {
+        showToast: false,
+        defaultMessage: "删除角色失败",
       });
       setError(info.message);
     }
@@ -298,26 +343,46 @@ function AdminRbacPage() {
 
             <div className="space-y-2">
               {(rolesQuery.data ?? []).map((r) => (
-                <button
+                <div
                   key={r.id}
-                  type="button"
-                  className={`w-full text-left rounded-md border p-3 hover:bg-muted ${
+                  className={`w-full rounded-md border p-3 ${
                     selectedRoleId === r.id ? "bg-muted" : ""
                   }`}
-                  onClick={() =>
-                    onSelectRole(
-                      r.id,
-                      (r.permissions ?? []).map((p) => p.code)
-                    )
-                  }
                 >
-                  <div className="font-medium">{r.name}</div>
-                  {r.description ? (
-                    <div className="text-xs text-muted-foreground">
-                      {r.description}
-                    </div>
-                  ) : null}
-                </button>
+                  <div className="flex items-start gap-2">
+                    <button
+                      type="button"
+                      className="flex-1 text-left hover:underline"
+                      onClick={() =>
+                        onSelectRole(
+                          r.id,
+                          (r.permissions ?? []).map((p) => p.code)
+                        )
+                      }
+                    >
+                      <div className="font-medium">{r.name}</div>
+                      {r.description ? (
+                        <div className="text-xs text-muted-foreground">
+                          {r.description}
+                        </div>
+                      ) : null}
+                      {r.is_system ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          系统角色（不可删除）
+                        </div>
+                      ) : null}
+                    </button>
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={!canWrite || r.is_system || deleteRole.isPending}
+                      onClick={() => onDeleteRole(r.id, r.name)}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </div>
               ))}
               {rolesQuery.isLoading ? (
                 <p className="text-sm text-muted-foreground">加载角色中...</p>
