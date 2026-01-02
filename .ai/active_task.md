@@ -1,3 +1,20 @@
+## Current Objective
+
+为 Nexus Console 新增 Cursor 测试规则（后端 pytest + 前端 vitest），使 AI 在编写/修改测试时遵循项目既有约定与最佳实践。
+
+## Progress
+
+- 已确认后端 pytest 配置与 fixture 结构（`apps/api/pyproject.toml`、`app/tests/conftest.py`）。
+- 已确认前端 vitest 配置、测试目录与常见 mock/渲染模式（`apps/web/vitest.config.ts`、`src/test/*`、`*.test.ts*`）。
+- 已新增规则文件：
+  - `.cursor/rules/testing-pytest.mdc`
+  - `.cursor/rules/testing-vitest.mdc`
+
+## Next Steps
+
+- 检查新规则文件是否有格式/拼写问题（必要时微调 `globs` 覆盖范围）。
+- 若你希望把 `setup.ts`/`vitest.config.ts` 也纳入规则触发范围，按 Cursor 对 `globs` 支持情况扩展为多 pattern 或拆分更细的规则文件。
+
 # 项目整体审查
 
 ## 当前目标

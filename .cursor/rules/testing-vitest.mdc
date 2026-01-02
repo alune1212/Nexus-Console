@@ -1,0 +1,67 @@
+---
+description: 前端测试规则（Vitest + Testing Library）
+globs: apps/web/src/**/*.{test,spec}.ts*
+alwaysApply: false
+---
+
+## Frontend 测试规则（vitest）
+
+本文件用于指导 Cursor 在编写/修改 `apps/web` 的单元/组件测试时遵循本项目约定。
+
+- 适用范围：`apps/web/src/**/*.test.ts*`、`apps/web/src/**/*.spec.ts*`。
+- 运行方式：
+  - `pnpm --filter web test` / `pnpm --filter web test:run`
+  - 覆盖率：`pnpm --filter web test:coverage`
+
+### 基本约定
+
+- 测试框架使用 `vitest`，运行环境为 `jsdom`（见 `apps/web/vitest.config.ts`）。
+- 测试应尽量贴近用户行为：
+  - 优先使用 `@testing-library/react` + `@testing-library/user-event`。
+  - 避免直接调用组件内部方法或依赖实现细节。
+- 每个测试必须可独立运行、顺序无关：
+  - 不依赖上一个测试产生的 store 状态、mock 状态或全局变量。
+
+### 推荐写法（Testing Library）
+
+- 查询元素优先级：
+  - 优先 `screen.getByRole(...)`（可访问性语义强）。
+  - 次选 `getByLabelText`、`getByText`。
+  - 避免 `querySelector`/`getByTestId`，除非确有必要且有稳定语义。
+- 交互：
+  - 使用 `const user = userEvent.setup()`，再 `await user.click/type/...`。
+- 异步：
+  - UI 异步更新使用 `await waitFor(...)` 或 Testing Library 的 async 查询，避免 `setTimeout/sleep`。
+
+### TanStack Router 路由组件测试
+
+- 路由文件不要额外导出页面组件（遵循项目路由规则）。
+- 需要测试路由页面时：
+  - 从 `Route.options.component` 提取组件进行测试（项目已有示例：`src/test/login.test.tsx`）。
+- Router hooks/redirect 等行为：
+  - 通过 `vi.mock("@tanstack/react-router", async () => ({ ...await vi.importActual(...), ... }))` 做最小 mock。
+
+### TanStack Query / Zustand 相关测试
+
+- TanStack Query：
+  - 若组件依赖 QueryClient，测试中必须包 `QueryClientProvider`。
+  - 每个测试/用例组应创建新的 `QueryClient`，并关闭 retry（避免测试变慢/不稳定）。
+- Zustand：
+  - 测试前通过 `store.setState(...)` 重置状态，避免跨用例污染。
+
+### Mock 约定
+
+- API 调用优先 mock `@/api/client` 的 `customFetch`（orval client 的底层）。
+- 使用 `vi.clearAllMocks()`/`mockReset()` 在 `beforeEach` 清理 mock。
+- 优先使用“最小 mock”，只 mock 当前用例需要的函数/模块，避免大范围 mock 导致行为偏离真实。
+
+### 覆盖率与生成代码
+
+- 覆盖率阈值与排除项以 `vitest.config.ts` 为准：
+  - `src/api/**`（生成代码）默认排除，不要求覆盖。
+
+### 与 E2E（Playwright）的边界
+
+- 组件/单元测试只验证组件行为与交互逻辑。
+- 跨页面跳转、真实浏览器行为、端到端流程放在 `apps/web/e2e` 使用 Playwright 覆盖。
+

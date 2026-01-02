@@ -1,0 +1,55 @@
+---
+description: 后端测试规则（pytest + pytest-asyncio）
+globs: apps/api/app/tests/**/*.py
+alwaysApply: false
+---
+
+## Backend 测试规则（pytest）
+
+本文件用于指导 Cursor 在编写/修改 `apps/api` 的测试代码时遵循本项目约定。
+
+- 适用范围：`apps/api/app/tests/**`（含 `conftest.py`、`test_*.py`）。
+- 运行方式：
+  - `pnpm --filter api test`（实际执行 `uv run pytest`）
+
+### 基本约定
+
+- 测试框架使用 `pytest` + `pytest-asyncio`：
+  - 本项目已在 `apps/api/pyproject.toml` 中配置 `asyncio_mode="auto"`、`testpaths=["app/tests"]`、覆盖率参数等。
+- 测试文件命名：`test_*.py`；测试函数命名：`test_*`。
+- 测试应保持**确定性**：
+  - 禁止依赖外部网络、真实 Redis、真实 Postgres。
+  - 避免依赖真实时间/随机数；必要时在测试中固定输入或 mock。
+
+### FastAPI 集成测试（HTTP 级别）
+
+- 优先写“从 HTTP 入口验证行为”的集成测试，而不是直接调用内部函数。
+- HTTP 客户端统一使用 `httpx.AsyncClient` + `ASGITransport`（见 `app/tests/conftest.py` 的 `client` fixture）：
+  - 禁止使用 `requests`。
+  - 不要新建自定义 event loop/transport；优先复用现有 fixture。
+- 数据库依赖覆盖：
+  - 使用 `app.dependency_overrides[get_db]` 覆盖 DB（项目已在 `conftest.py` 提供），并在测试结束后清理 overrides。
+
+### 数据库与状态隔离
+
+- 默认每个测试应相互隔离：
+  - 本项目 `setup_database` fixture 会在每个测试前创建表、测试后 drop 表，并清理缓存。
+- 若测试需要写入数据：
+  - 优先通过 API 写入（更贴近真实行为）。
+  - 如确需直接写库：在 `conftest.py` 中新增/复用 AsyncSession fixture，并确保显式 `await session.commit()`，避免隐式提交导致用例不稳定。
+
+### 缓存/限流等跨切关注点
+
+- 对启用缓存的接口测试：
+  - 关注“功能正确性”与“权限安全”，避免引入跨用例共享缓存。
+  - 依赖 `FastAPICache` 的初始化与清理应由 fixture 统一管理（项目已在 `setup_database` 处理）。
+- 对启用 slowapi 的接口测试：
+  - 需要确保 limiter storage 不串用例（项目已在 `reset_rate_limit_storage` 处理）。
+
+### 断言与错误处理
+
+- HTTP 响应断言建议：
+  - 优先断言 `status_code` + 关键字段（而非整个 JSON 全量比对，除非结构很稳定）。
+  - 对错误响应，断言 `status_code` 与 `detail/code` 等业务字段。
+- 避免睡眠式等待（`sleep`），优先基于响应/状态变化做断言。
+
