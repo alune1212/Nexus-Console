@@ -47,7 +47,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "standard-version": "^9.5.0",
-    "turbo": "^2.7.2"
+    "turbo": "^2.7.5"
   },
   "pnpm": {
     "overrides": {
